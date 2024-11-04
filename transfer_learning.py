@@ -12,9 +12,9 @@ from tensorflow.keras.applications import MobileNetV2
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 
-class_name = ['Diego', 'Alex', 'Inigo']
+class_names = ['Diego', 'Alex', 'Inigo']
 
-# model = models.load_model('')
+model = models.load_model('model.h5')
 
 
 cap = cv2.VideoCapture(0)
@@ -32,13 +32,20 @@ while True:
     
     size = (224, 224)
     img = cv2.resize(frame, size)
-    # Process the image
-    # results = model(frame, stream=True)
     
+    # img = img.astype('float32') / 255.0
+    img_batch = np.expand_dims(img, axis=0)
+    
+    results = model(img_batch)
+    print(results)
+    
+    predicted_index = np.argmax(results)
+    predicted_label = class_names[predicted_index]
+    print(predicted_index)
     
     height, width, _ = frame.shape
     # text = f'{class_name[0]} {class_name[0]:.2f}'
-    text = f'{class_name[2]}'
+    text = f'{predicted_label}'
     text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 1, 2)[0]
     text_x = (width - text_size[0]) // 2
     text_y = height - 20  # 20 pixels from the bottom
