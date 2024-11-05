@@ -1,17 +1,18 @@
 import tensorflow as tf
 from tensorflow.keras.applications import VGG19
+from tensorflow.keras.applications.vgg19 import preprocess_input
 from tensorflow.keras import layers, models
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
-import cv2
-import os
-import random
+
+from sklearn.metrics import confusion_matrix, precision_recall_fscore_support, mean_squared_error, classification_report
+
 import numpy as np
 import matplotlib.pyplot as plt
 
 
 def prepare_data(train_dir, validate_dir, test_dir, img_size=(224, 224), batch_size=32):
-    train_datagen = ImageDataGenerator(rescale=1./255, rotation_range=20, zoom_range=0.2, horizontal_flip=True)
+    train_datagen = ImageDataGenerator(rescale=1./255, rotation_range=20, zoom_range=0.2, brightness_range=(0.8, 1.2), horizontal_flip=True)
     validate_datagen = ImageDataGenerator(rescale=1./255)
     test_datagen = ImageDataGenerator(rescale=1./255)
 
@@ -19,17 +20,17 @@ def prepare_data(train_dir, validate_dir, test_dir, img_size=(224, 224), batch_s
     train_generator = train_datagen.flow_from_directory(train_dir,
                                                         target_size=img_size,
                                                         batch_size=batch_size,
-                                                        class_mode='binary')
+                                                        class_mode='categorical')
 
     validate_generator = validate_datagen.flow_from_directory(validate_dir,
                                                               target_size=img_size,
                                                               batch_size=batch_size,
-                                                              class_mode='binary')
+                                                              class_mode='categorical')
 
     test_generator = test_datagen.flow_from_directory(test_dir,
                                                       target_size=img_size,
                                                       batch_size=batch_size,
-                                                      class_mode='binary')
+                                                      class_mode='categorical')
 
     return train_generator, validate_generator, test_generator
 
@@ -40,6 +41,7 @@ train_gen, val_gen, test_gen = prepare_data('./dataset/train',
                                                 './dataset/test')
 
 
+# # Visualizar un lote de imágenes
 # plt.figure(figsize=(10, 10))
 # plt.imshow(train_gen[0][0][0])
 # plt.show()
@@ -53,8 +55,9 @@ model = models.Sequential([
     base_model,
     layers.GlobalAveragePooling2D(),
     layers.Dense(128, activation='relu'),
-    layers.Dropout(0.5),
+    layers.Dropout(0.4),
     layers.Dense(64, activation='relu'),
+    layers.Dense(32, activation='relu'),
     layers.Dense(3, activation='softmax')  # 2 clases: persona/no persona
 ])
 
@@ -62,22 +65,24 @@ print(model.summary())
 
 
 model.compile(optimizer=Adam(learning_rate=0.0001),
-            loss='sparse_categorical_crossentropy',
+            loss='categorical_crossentropy',
             metrics=['accuracy'])
 
 
-early_sttoping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
+early_sttoping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
 
  # Entrenamiento del modelo
 model_history = model.fit(train_gen,
                         validation_data=val_gen,
-                        epochs=15,
+                        epochs=10,
                         callbacks=[early_sttoping])
 
 
 # Evaluar en el conjunto de test
 test_loss, test_acc = model.evaluate(test_gen)
 print(f'Loss: {test_loss}, test_acc: {test_acc}')
+
+model.save('model.h5')
 
 plt.figure(figsize=(10, 6))
 plt.subplot(1,2,1)
@@ -126,10 +131,18 @@ for i in range(9):
         plt.xlabel(f'Real: {real_label}\nPredicción: {pred_label}', color='green')
     else: 
         plt.xlabel(f'Real: {real_label}\nPredicción: {pred_label}', color='red')
-# plt.tight_layout()
+
 plt.show()
 
 
+y_true = test_gen.classes  # Clases verdaderas de las imágenes del conjunto de prueba
+y_pred = model.predict(test_gen)
+y_pred_classes = np.argmax(y_pred, axis=1)  # Convierte las probabilidades en clases predichas
 
-model.save('model.h5')
+# Matriz de confusión
+cm = confusion_matrix(y_true, y_pred_classes)
+print("Confusion Matrix:\n", cm)
 
+# Reporte de clasificación
+report = classification_report(y_true, y_pred_classes, target_names=test_gen.class_indices.keys())
+print("Classification Report:\n", report)
