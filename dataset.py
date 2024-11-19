@@ -22,7 +22,7 @@ def get_frames(video_path, class_name):
         return
 
     # Definir el intervalo de frames
-    frame_interval = max(frame_rate // 100, 1)
+    frame_interval = max(frame_rate // 1000, 1)
 
     # Extraer frames del video
     frames = []
