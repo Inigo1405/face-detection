@@ -1,7 +1,7 @@
 # face-detection
-Deteccón de rostros
+Deteccón de rostros con CNN
 
 Equipo de trabajo: 
--Alex
+- Alex
 - Diego
 - Iñigo
